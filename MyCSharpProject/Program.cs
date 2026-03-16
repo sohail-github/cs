@@ -1,23 +1,52 @@
-﻿var builder = WebApplication.CreateBuilder(args);
+﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Configure port
+builder.WebHost.UseUrls("http://localhost:3000", "https://localhost:3001");
 
 // Add services to the container
 builder.Services.AddScoped<IProductService, ProductService>();
-'C:\Users\Sohail\Documents\ppp\New folder\MyCSharpProject\MyCSharpProject.csproj'.One or more errors occurred. (The project file could not be loaded.   C:\Users\Sohail\Documents\ppp\New folder\MyCSharpProject\MyCSharpProject.csproj)
-2026-03-16 23:43:39.056[info] Project system initialization finished. 0 project(s) are loaded, and 1 failed to load.
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "Product API",
+        Version = "v1",
+        Description = "A simple Product API for CRUD operations"
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
-app.UseHttpsRedirection();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Product API v1");
+        c.RoutePrefix = "swagger"; // Access at /swagger
+    });
+}
+else
+{
+    app.UseHttpsRedirection();
+}
 
 // ==================== REST API ENDPOINTS ====================
+
+// Root endpoint
+app.MapGet("/", () => Results.Ok(new { message = "Welcome to Product API", version = "1.0" }))
+.WithName("Root");
 
 // GET all products
 app.MapGet("/api/products", (IProductService service) =>
 {
     return Results.Ok(service.GetAllProducts());
 })
-.WithName("GetProducts")
-.WithOpenApi();
+.WithName("GetProducts");
 
 // GET product by ID
 app.MapGet("/api/products/{id}", (int id, IProductService service) =>
@@ -25,8 +54,7 @@ app.MapGet("/api/products/{id}", (int id, IProductService service) =>
     var product = service.GetProductById(id);
     return product != null ? Results.Ok(product) : Results.NotFound();
 })
-.WithName("GetProductById")
-.WithOpenApi();
+.WithName("GetProductById");
 
 // POST - Create new product
 app.MapPost("/api/products", (CreateProductRequest request, IProductService service) =>
@@ -39,8 +67,7 @@ app.MapPost("/api/products", (CreateProductRequest request, IProductService serv
     var product = service.CreateProduct(request.Name, request.Price, request.Description);
     return Results.Created($"/api/products/{product.Id}", product);
 })
-.WithName("CreateProduct")
-.WithOpenApi();
+.WithName("CreateProduct");
 
 // PUT - Update product
 app.MapPut("/api/products/{id}", (int id, UpdateProductRequest request, IProductService service) =>
@@ -48,8 +75,7 @@ app.MapPut("/api/products/{id}", (int id, UpdateProductRequest request, IProduct
     var product = service.UpdateProduct(id, request.Name, request.Price, request.Description);
     return product != null ? Results.Ok(product) : Results.NotFound();
 })
-.WithName("UpdateProduct")
-.WithOpenApi();
+.WithName("UpdateProduct");
 
 // DELETE - Remove product
 app.MapDelete("/api/products/{id}", (int id, IProductService service) =>
@@ -57,8 +83,7 @@ app.MapDelete("/api/products/{id}", (int id, IProductService service) =>
     var success = service.DeleteProduct(id);
     return success ? Results.Ok("Product deleted successfully") : Results.NotFound();
 })
-.WithName("DeleteProduct")
-.WithOpenApi();
+.WithName("DeleteProduct");
 
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
